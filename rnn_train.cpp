@@ -35,7 +35,7 @@ auto W_hy = matrix<2>(hidden_size, vocab_size).fill_random(random_generator, 0.0
 auto b_h  = matrix<1>(hidden_size).fill(.0f);
 auto b_y  = matrix<1>(vocab_size).fill(.0f);
 
-// 上一步的 RNN 状态
+// 上一个训练步的最后一个 RNN 隐藏状态
 auto H_previous = matrix<2>(batch_size, hidden_size).fill(.0f);
 
 // 前向传播计算的中间结果
@@ -186,6 +186,7 @@ void rnn_optimize() noexcept {
 // RNN 推理函数
 auto predict(char32_t token, matrix<1>& H, float temperature, float top_p) -> std::pair<char32_t, matrix_view<1>> {
     thread_local matrix<1> H_next, Y;
+
     H_next.resize(hidden_size);
     Y.resize(vocab_size);
     
@@ -194,10 +195,10 @@ auto predict(char32_t token, matrix<1>& H, float temperature, float top_p) -> st
     matrix_view X = E.slice(token_index);
     H_next = tanh(X * W_hx + H * W_hh + b_h);
     Y = H_next * W_hy + b_y;
+    H = H_next;
 
     int next_token_index = utils::sample(std::span(Y.data(), Y.size()), random_generator, temperature, top_p);
     char32_t next_token = vocab[next_token_index];
-    H = H_next;
 
     return { next_token, H };
 }
@@ -214,11 +215,11 @@ auto main(int argc, char* argv[]) -> int try {
     std::string data_path = args[0] | "data.txt";
     std::string output_path = args["-o"] | args["--output"] | "model.bin";
 
-    console::info("加载训练集数据: {}", data_path);
+    console::info("加载训练数据: {}", data_path);
     std::u32string data = utils::load_files(data_path) | utils::utf8_to_utf32;
 
     if (data.size() < batch_size * (seq_length + 1))
-        throw std::runtime_error("训练集数据量过少");
+        throw std::runtime_error("训练数据量过少");
 
     std::tie(vocab, token_to_vocab_index) = utils::generate_vocab(data, vocab_size);
     
@@ -249,7 +250,7 @@ auto main(int argc, char* argv[]) -> int try {
 
         for (int b = 0; b < batch_size; b++)
             for (int t = 0; t < seq_length; t++) {
-                inputs[t * batch_size + b]  = token_to_vocab_index[data[b * chunk_size + chunk_index + t]];
+                inputs[t * batch_size + b] = token_to_vocab_index[data[b * chunk_size + chunk_index + t]];
                 targets[t * batch_size + b] = token_to_vocab_index[data[b * chunk_size + chunk_index + t + 1]];
             }
 
@@ -265,6 +266,7 @@ auto main(int argc, char* argv[]) -> int try {
 
             auto H_test = matrix<1>(hidden_size).fill(.0f);
             char32_t token = U'\n';
+
             for (int i = 0; i < seq_length; i++) {
                 std::tie(token, std::ignore) = predict(token, H_test, 0.85f, 0.9f);
                 console::print("{}", utils::utf32_to_utf8(token, true));

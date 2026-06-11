@@ -3,7 +3,7 @@
 #include <random>
 #include <ranges>
 #include <unordered_map>
-#include <chrono>
+#include <charconv>
 #include <algorithm>
 #include <string>
 #include <format>
@@ -16,7 +16,7 @@
 
 namespace ineffa::utils {
 
-// 从字符串数据生成词表 和 token到词表索引的映射
+// 从字符串数据生成 词表 和 token到词表索引的映射
 auto inline generate_vocab(std::u32string& data, int vocab_size) {
     assert(vocab_size > 0);
 
@@ -32,7 +32,8 @@ auto inline generate_vocab(std::u32string& data, int vocab_size) {
     std::unordered_map<char32_t, int> char_to_vocab_index;
     char_to_vocab_index[U'\uFFFD'] = 0;
 
-    for (auto [i, c] : freq_list | std::views::keys | std::views::take(vocab_size - 1) | std::views::enumerate) {
+    for (int i = 0; i < std::min<int>(vocab_size - 1, freq_list.size()); i++) {
+        char32_t c = freq_list[i].first;
         vocab[i + 1] = c;
         char_to_vocab_index[c] = i + 1;
     }
@@ -45,10 +46,7 @@ auto inline generate_vocab(std::u32string& data, int vocab_size) {
 }
 
 
-/**
- * 对一组逻辑值进行 temperature + Top-P 采样
- * @return int 采样的逻辑值对应索引
- */
+// 对一组逻辑值进行 temperature + Top-P 采样，返回采样的逻辑值对应索引
 auto inline sample(std::span<const float> logits, std::mt19937& random_generator, float temperature, float top_p) -> int {
     assert(logits.size() > 0);
 
@@ -88,7 +86,7 @@ auto inline sample(std::span<const float> logits, std::mt19937& random_generator
     auto distribution = std::uniform_real_distribution<float>(0.0f, weight_cumulative);
     const float target_weight = distribution(random_generator);
 
-    // 将权重从最大到小累加，直到累加权重 weight_cumulative 达到 target_weight
+    // 将权重从大到小累加，直到累加权重 weight_cumulative 达到 target_weight
     weight_cumulative = 0.0f;
     for (auto [weight, index] : indexed_weights | std::views::reverse) {
         weight_cumulative += weight;
@@ -169,13 +167,22 @@ namespace console {
     // 打印带时间的日志信息
     template <class... Args>
     void inline info(std::format_string<Args...> fmt, Args&&... args) {
-        namespace chrono = std::chrono;
+        auto now = std::chrono::system_clock::now();
+        auto duration = now.time_since_epoch();
+        auto milliseconds = std::chrono::duration_cast<std::chrono::milliseconds>(duration) % 1000;
 
-        auto now_time = chrono::floor<chrono::milliseconds>(chrono::system_clock::now());
-        auto local_time = chrono::zoned_time(chrono::current_zone(), now_time);
+        std::time_t now_time = std::time(nullptr);
+        std::tm local_time;
+        #if defined(_WIN32)
+            localtime_s(&local_time, &now_time);
+        #else
+            localtime_r(&now_time, &local_time);
+        #endif
+
         std::string msg = std::format(fmt, std::forward<Args>(args)...);
 
-        console::print("\x1b[90m{:%T}\x1b[32m INFO\x1b[0m {}\n", local_time, msg);
+        console::print("\x1b[90m{:02d}:{:02d}:{:02d}.{:03d}\x1b[32m INFO\x1b[0m {}\n", 
+            local_time.tm_hour, local_time.tm_min, local_time.tm_sec, milliseconds.count(), msg);
     }
 }
 
@@ -350,7 +357,7 @@ constexpr auto inline utf8_to_utf32 = [](std::string_view s) noexcept -> std::u3
 auto inline load_file(const std::filesystem::path& filepath) -> std::string {
     if (auto file = std::ifstream(filepath, std::ios::binary); file)
         return std::string(std::istreambuf_iterator<char>(file), std::istreambuf_iterator<char>());
-    throw std::runtime_error(std::format("无法打开文件 '{}'", filepath));
+    throw std::runtime_error(std::format("无法打开文件 '{}'", filepath.string()));
 }
 
 

@@ -10,7 +10,7 @@
 #include <cassert>
 
 namespace ineffa::matrix {
-    
+
 struct matrix_expr {};
 
 // 表达式求值器，对这个模板类进行特化可以拓展矩阵计算表达式支持，例如 Y = X * W + b;
@@ -57,13 +57,8 @@ public:
         return self.data()[index];
     }
 
-    [[nodiscard]] auto&& operator[](this auto&& self, std::integral auto... indices) noexcept requires(Rank > 1 && sizeof...(indices) == Rank) {
-        int index = indices...[0];
-
-        template for (constexpr int i : std::views::iota(1, Rank))
-            index = index * self.template extent<i>() + indices...[i];
-
-        return self.data()[index];
+    [[nodiscard]] auto&& operator[](this auto&& self, int row, int col) noexcept requires(Rank == 2) {
+        return self.data()[row * self.template extent<1>() + col];
     }
 
     [[nodiscard]] auto slice(int index) const noexcept requires(Rank > 1) {
@@ -139,7 +134,7 @@ public:
         this->shape_ = {0};
     }
 
-    matrix(matrix<Rank>&& other) noexcept : 
+    matrix(matrix<Rank>&& other) noexcept :
         matrix_view<Rank>(std::exchange(other.data_, nullptr), std::exchange(other.shape_, std::array<int, Rank>()))
     {}
 

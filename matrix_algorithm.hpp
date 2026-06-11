@@ -51,7 +51,7 @@ inline void mat_mul_add(matrix_view<> Y, const matrix_view<> X, const matrix_vie
 }
 
 
-// RNN 前向传播 (X为矩阵)
+// RNN 前向传播公式 (X为矩阵)
 // H_next = tanh(X * W_hx + H * W_hh + b_h)
 // H_next: [N, M], X: [N, K], W_hx: [K, M], H: [N, M], W_hh: [M, M], b_h: [M]
 inline void mat_rnn_forward(matrix_view<> H_next, const matrix_view<> X, const matrix_view<> W_hx, const matrix_view<> H, const matrix_view<> W_hh, const matrix_view<1> b_h) noexcept {
@@ -94,7 +94,7 @@ inline void mat_rnn_forward(matrix_view<> H_next, const matrix_view<> X, const m
 }
 
 
-// RNN 前向传播 (X为向量)
+// RNN 前向传播公式 (X为向量)
 // H_next = tanh(X * W_hx + H * W_hh + b_h)
 // H_next: [M], X: [K], W_hx: [K, M], H: [N, M], W_hh: [M, M], b_h: [M]
 inline void mat_rnn_forward(matrix_view<1> H_next, matrix_view<1> X, const matrix_view<> W_hx, const matrix_view<1> H, const matrix_view<> W_hh, const matrix_view<1> b_h) noexcept {

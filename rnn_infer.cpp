@@ -52,6 +52,7 @@ auto main(int argc, char* argv[]) -> int try {
     auto predict = [&](char32_t token, matrix<1>& H, float temperature, float top_p) -> std::pair<char32_t, matrix_view<1>> {
         thread_local auto random_generator = std::mt19937(random_seed);
         thread_local matrix<1> H_next, Y;
+        
         H_next.resize(hidden_size);
         Y.resize(vocab_size);
         
@@ -60,10 +61,10 @@ auto main(int argc, char* argv[]) -> int try {
         matrix_view X = E.slice(token_index);
         H_next = tanh(X * W_hx + H * W_hh + b_h);
         Y = H_next * W_hy + b_y;
+        H = H_next;
 
         int next_token_index = utils::sample(std::span(Y.data(), Y.size()), random_generator, temperature, top_p);
         char32_t next_token = vocab[next_token_index];
-        H = H_next;
 
         return { next_token, H };
     };
