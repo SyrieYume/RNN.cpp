@@ -4,7 +4,6 @@
 #include <span>
 #include <random>
 #include <algorithm>
-#include <ranges>
 #include <utility>
 #include <new>
 #include <cassert>
@@ -33,31 +32,31 @@ public:
     matrix_view(float* data, std::integral auto... extents) noexcept : data_(data), shape_({ int(extents)... }) {}
 
     template <int dimension>
-    [[nodiscard]] int extent() const noexcept requires(dimension >= 0 and dimension < Rank) {
+    int extent() const noexcept requires(dimension >= 0 and dimension < Rank) {
         const int _extent = shape_[dimension];
         if constexpr (Rank > 1 and dimension == Rank - 1)
             [[assume(_extent > 0 and _extent % 16 == 0)]];
         return _extent;
     }
     
-    [[nodiscard]] auto size() const noexcept -> int {
+    auto size() const noexcept -> int {
         const auto [...extents] = shape_;
         if constexpr (Rank > 1)
             [[assume(extents...[Rank - 1] % 16 == 0)]]; 
         return (extents * ...);
     }
 
-    [[nodiscard]] auto data(this auto&& self) noexcept {
+    auto data(this auto&& self) noexcept {
         constexpr bool is_self_const = std::is_const_v<std::remove_reference_t<decltype(self)>>;
         using data_type = std::conditional_t<is_self_const, const float* __restrict, float* __restrict>;
         return (data_type)std::assume_aligned<alignment>(self.data_);
     }
 
-    [[nodiscard]] auto&& operator[](this auto&& self, int index) noexcept {
+   auto&& operator[](this auto&& self, int index) noexcept {
         return self.data()[index];
     }
 
-    [[nodiscard]] auto&& operator[](this auto&& self, int row, int col) noexcept requires(Rank == 2) {
+    auto&& operator[](this auto&& self, int row, int col) noexcept requires(Rank == 2) {
         return self.data()[row * self.template extent<1>() + col];
     }
 

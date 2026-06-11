@@ -45,8 +45,8 @@ auto main(int argc, char* argv[]) -> int try {
     read_datas(vocab, E, W_hx, W_hh, W_hy, b_h, b_y);
 
     // 生成 token到词表索引的映射
-    for (auto [index, token] : vocab | std::ranges::views::enumerate)
-        token_to_vocab_index[token] = index;
+    for (int i = 0; i < vocab.size(); i++)
+        token_to_vocab_index[vocab[i]] = i;
 
     // RNN 推理函数
     auto predict = [&](char32_t token, matrix<1>& H, float temperature, float top_p) -> std::pair<char32_t, matrix_view<1>> {
